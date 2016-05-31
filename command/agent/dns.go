@@ -777,13 +777,13 @@ func (d *DNSServer) handleRecurse(resp dns.ResponseWriter, req *dns.Msg) {
 	for _, recursor := range d.recursors {
 		r, rtt, err = c.Exchange(req, recursor)
 		if err == nil {
-			// Incoming messages could have been uncompressed by the client,
-			// recompress them if they are too big for UDP
-			if network == "udp" {
-				l := r.Len()
-				if l > dns.MinMsgSize {
-					r.Compress = true
-					d.logger.Printf("[DEBUG] dns: compressed message size: %d, was %d", r.Len(), l)
+			if network != "tcp" {
+				r.Compress = true
+
+				wasTrimmed := trimUDPAnswers(d.config, r)
+
+				if wasTrimmed && d.config.EnableTruncate {
+					r.Truncated = true
 				}
 			}
 			// Forward the response
